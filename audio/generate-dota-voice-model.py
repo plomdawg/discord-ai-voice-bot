@@ -41,7 +41,7 @@ def download_mp3s():
         audio_file_path = audio_directory / audio_file_name
 
         # Download the audio file.
-        print(f"Downloading audio file {audio_file_name}")
+        print(f"Downloading audio file {audio_file_name} ({i} / {len(links)})")
         audio_file = requests.get(link['href'])
 
         # Save the audio file.
@@ -52,8 +52,9 @@ def download_mp3s():
 def combine_mp3s():
     # Combine all audio files into a single audio file.
     sound = pydub.AudioSegment.empty()
-    for audio_file in audio_directory.glob("*.mp3"):
-        print(f"Adding: {audio_file}")
+    files = list(audio_directory.glob("*.mp3"))
+    for i, audio_file in enumerate(files):
+        print(f"Adding: {audio_file} ({i} / {len(files)})")
         sound += pydub.AudioSegment.from_file(audio_file, format="mp3")
         # Add 300ms of silence.
         sound += pydub.AudioSegment.silent(duration=300)
