@@ -5,6 +5,7 @@ import discord
 import argparse
 import asyncio
 import elevenlabslib
+import pathlib
 
 
 class Voice:
@@ -19,9 +20,8 @@ class Voice:
             print(voice.initialName)
             self.voices[voice.initialName.lower()] = voice
 
-    def generate_tts_mp3(self, text, voice):
+    def generate_tts_mp3(self, text, voice, mp3_path):
         """ Generate a TTS clip and save it to a file """
-        mp3_path = "tts.mp3"
         elevenlabslib.helpers.save_bytes_to_path(
             mp3_path, self.voices[voice].generate_audio_bytes(text))
         return mp3_path
@@ -44,12 +44,57 @@ client = discord.Client(intents=intents)
 # Create the AI voice client.
 ai_voice = Voice(args.elevenlabs)
 
+async def handle_message_tts(message):
+    """ Processes a TTS message. May be triggered by on_message() or on_reaction() """
+    # Try to remove the check, it's okay if it doesn't exist.
+    try:
+        await message.remove_reaction("✅", client.user)
+    except:
+        pass
+    # Add emoji hourglass to the message as a reaction.
+    await message.add_reaction("⏳")
+    # Remove the prefix from the message.
+    text = message.content[len(args.prefix):]
+    # Remove the mention from the message.
+    text = text.replace(f"<@{client.user.id}>", '').strip()
+    # Default to the mark voice.
+    voice = "mark"
+    # Check if the message starts with the name of a voice
+    for voice_name in ai_voice.voices.keys():
+        if text.startswith(f"{voice_name}: "):
+            voice = voice_name
+            # Strip the name and colon from the message
+            text = text[len(voice_name)+2:].strip()
 
-async def generate_tts(text, voice):
-    """ Generate a TTS clip and return the path to the file """
-    print(f"Generating audio clip in voice {voice} for: '{text}'")
-    audio_path = ai_voice.generate_tts_mp3(text, voice=voice)
-    return audio_path
+    # Let the user know if the message is too long.
+    if len(text) > 420:
+        return await message.channel.send("Message too long, please keep it under 420 characters.")
+    
+    # Make sure the tts directory exists.
+    tts_path = pathlib.Path("tts")
+    tts_path.mkdir(parents=True, exist_ok=True)
+    
+    # Generate mp3 file path using the message ID.
+    mp3_path = tts_path / f"{message.id}.mp3"
+    
+    # Generate the TTS clip if it doesn't exist.
+    if not mp3_path.exists():
+        mp3_path = ai_voice.generate_tts_mp3(text, voice=voice, mp3_path=mp3_path)
+
+    # Remove the hourglass reaction and react with a sound icon.
+    await message.remove_reaction("⏳", client.user)
+    await message.add_reaction("🔊")
+
+    # Play the message in the user's voice channel.
+    await play_tts_in_channel(message.author.voice.channel, mp3_path)
+
+    # React with a checkmark once we're done.
+    await message.remove_reaction("🔊", client.user)
+    await message.add_reaction("✅")
+    
+    # React with a replay button.
+    await message.add_reaction("🔄")
+    
 
 
 async def play_tts_in_channel(voice_channel, audio_path):
@@ -104,40 +149,20 @@ async def on_message(message):
 
     # Play TTS messages that start with the prefix.
     if message.content.startswith(args.prefix):
-        # Add emoji hourglass to the message as a reaction.
-        await message.add_reaction("⏳")
-        # Remove the prefix from the message.
-        text = message.content[len(args.prefix):]
-        # Remove the mention from the message.
-        text = text.replace(f"<@{client.user.id}>", '').strip()
-        # Default to the mark voice.
-        voice = "mark"
-        # Check if the message starts with the name of a voice
-        for voice_name in ai_voice.voices.keys():
-            if text.startswith(f"{voice_name}: "):
-                voice = voice_name
-                # Strip the name and colon from the message
-                text = text[len(voice_name)+2:].strip()
-        # Make sure the message isn't too loud, if it is, let the user know.
-        if len(text) > 200:
-            await message.channel.send("Message too long, please keep it under 200 characters.")
-            return
+        await handle_message_tts(message)
 
-        # Generate the TTS clip.
-        audio_path = await generate_tts(text, voice=voice)
-        audio_path = ai_voice.generate_tts_mp3(text, voice=voice)
-
-        # Remove the hourglass reaction and react with a sound icon.
-        await message.remove_reaction("⏳", client.user)
-        await message.add_reaction("🔊")
-
-        # Play the message in the user's voice channel.
-        await play_tts_in_channel(message.author.voice.channel, audio_path)
-
-        # React with a checkmark once we're done.
-        await message.remove_reaction("🔊", client.user)
-        await message.add_reaction("✅")
-
+@client.event
+async def on_reaction_add(reaction, user):
+    # Ignore own reactions.
+    if user == client.user:
+        return
+    
+    # If the reaction emoji is a replay button, replay the message.
+    if reaction.emoji == "🔄":
+        # Remove the user's reaction.
+        await reaction.remove(user)
+        # Handle the message as a TTS message.
+        await handle_message_tts(reaction.message)
 
 def main():
     client.run(args.token)
