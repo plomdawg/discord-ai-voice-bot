@@ -1,0 +1,10 @@
+# Discord API https://github.com/Pycord-Development/pycord
+git+https://github.com/Pycord-Development/pycord
+
+# Needed to use voice.
+pynacl
+
+# AI Voice https://github.com/lugia19/elevenlabslib
+elevenlabslib
+soundfile
+sounddevice

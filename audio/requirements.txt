@@ -1,0 +1,2 @@
+# Audio library used to stitch together audio files.
+pydub

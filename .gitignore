@@ -1,0 +1,3 @@
+# Ignore .mp3 files anywhere in the repo.
+*.mp3
+**/*.mp3
