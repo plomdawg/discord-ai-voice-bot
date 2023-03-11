@@ -5,7 +5,6 @@ import discord
 import argparse
 import asyncio
 import elevenlabslib
-import io
 
 
 class Voice:
@@ -27,6 +26,7 @@ class Voice:
             mp3_path, self.voices[voice].generate_audio_bytes(text))
         return mp3_path
 
+
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description='Dota Voice Bot')
 parser.add_argument('--token', help='Discord bot token', required=True)
@@ -44,11 +44,13 @@ client = discord.Client(intents=intents)
 # Create the AI voice client.
 ai_voice = Voice(args.elevenlabs)
 
+
 async def generate_tts(text, voice):
     """ Generate a TTS clip and return the path to the file """
     print(f"Generating audio clip in voice {voice} for: '{text}'")
     audio_path = ai_voice.generate_tts_mp3(text, voice=voice)
     return audio_path
+
 
 async def play_tts_in_channel(voice_channel, audio_path):
     """ Play an audio clip in a voice channel """
