@@ -20,20 +20,12 @@ class Voice:
             print(voice.initialName)
             self.voices[voice.initialName.lower()] = voice
 
-    def generate_tts_mp3(self, text, voice="josh"):
+    def generate_tts_mp3(self, text, voice):
         """ Generate a TTS clip and save it to a file """
         mp3_path = "tts.mp3"
         elevenlabslib.helpers.save_bytes_to_path(
             mp3_path, self.voices[voice].generate_audio_bytes(text))
         return mp3_path
-
-    def generate_tts_bytes(self, text, voice="josh"):
-        """ Generate a TTS clip and save it to a file-like object """
-        memory_file = io.BytesIO()
-        elevenlabslib.helpers.save_bytes_to_file_object(
-            memory_file, self.voices[voice].generate_audio_bytes(text))
-        return memory_file
-
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description='Dota Voice Bot')
@@ -52,7 +44,7 @@ client = discord.Client(intents=intents)
 # Create the AI voice client.
 ai_voice = Voice(args.elevenlabs)
 
-async def generate_tts(text, voice="josh"):
+async def generate_tts(text, voice):
     """ Generate a TTS clip and return the path to the file """
     print(f"Generating audio clip in voice {voice} for: '{text}'")
     audio_path = ai_voice.generate_tts_mp3(text, voice=voice)
@@ -113,24 +105,25 @@ async def on_message(message):
         # Add emoji hourglass to the message as a reaction.
         await message.add_reaction("⏳")
         # Remove the prefix from the message.
-        content = message.content[len(args.prefix):]
+        text = message.content[len(args.prefix):]
         # Remove the mention from the message.
-        content = content.replace(f"<@{client.user.id}>", '').strip()
-        # Default to the Josh voice.
-        voice = "josh"
+        text = text.replace(f"<@{client.user.id}>", '').strip()
+        # Default to the mark voice.
+        voice = "mark"
         # Check if the message starts with the name of a voice
         for voice_name in ai_voice.voices.keys():
-            if content.startswith(f"{voice_name}: "):
+            if text.startswith(f"{voice_name}: "):
                 voice = voice_name
                 # Strip the name and colon from the message
-                content = content[len(voice_name)+2:].strip()
+                text = text[len(voice_name)+2:].strip()
         # Make sure the message isn't too loud, if it is, let the user know.
-        if len(content) > 200:
+        if len(text) > 200:
             await message.channel.send("Message too long, please keep it under 200 characters.")
             return
 
         # Generate the TTS clip.
-        audio_path = await generate_tts(content, voice=voice)
+        audio_path = await generate_tts(text, voice=voice)
+        audio_path = ai_voice.generate_tts_mp3(text, voice=voice)
 
         # Remove the hourglass reaction and react with a sound icon.
         await message.remove_reaction("⏳", client.user)
