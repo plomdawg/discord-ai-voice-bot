@@ -1,5 +1,10 @@
 # AI Voice bot
 
+This bot plays AI voices from [ElevenLabs](https://beta.elevenlabs.io) using custom made voices from my friends.
+
+
+![ai bot demo](https://user-images.githubusercontent.com/6510862/224526407-8c490469-9a30-4d32-84dc-ca799b1aabef.gif)
+
 
 ## Scraping Dota Wiki for audio files
 
