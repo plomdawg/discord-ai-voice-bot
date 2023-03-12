@@ -23,7 +23,7 @@ class Voice:
     def generate_tts_mp3(self, text, voice, mp3_path):
         """ Generate a TTS clip and save it to a file """
         elevenlabslib.helpers.save_bytes_to_path(
-            mp3_path, self.voices[voice].generate_audio_bytes(text))
+            mp3_path, self.voices[voice].generate_audio_bytes(text, stability=0.1))
         return mp3_path
 
 
@@ -66,47 +66,68 @@ async def handle_message_tts(message):
     voice = "mark"
     # Check if the message starts with the name of a voice
     for voice_name in ai_voice.voices.keys():
-        if text.startswith(f"{voice_name}: "):
+        if text.startswith(f"{voice_name}:") or text.startswith(f"{voice_name};"):
             voice = voice_name
             # Strip the name and colon from the message
-            text = text[len(voice_name)+2:].strip()
+            text = text[len(voice_name)+1:].strip()
+        elif text.startswith(f"{voice_name}"):
+            voice = voice_name
+            text = text[len(voice_name):].strip()
 
     # Let the user know if the message is too long.
     if len(text) > 420:
-        return await message.channel.send("Message too long, please keep it under 420 characters.")
-    
+        await message.remove_reaction("⏳", client.user)
+        await message.add_reaction("❌")
+        return await message.channel.send(f"{message.author.mention} Message too long, please keep it under 420 characters.")
+
     # Make sure the tts directory exists.
     tts_path = pathlib.Path("tts")
     tts_path.mkdir(parents=True, exist_ok=True)
-    
+
+    # React with a replay button.
+    await message.add_reaction("🔄")
+
     # Generate mp3 file path using the message ID.
     mp3_path = tts_path / f"{message.id}.mp3"
-    
+
     # Generate the TTS clip if it doesn't exist.
     if not mp3_path.exists():
-        mp3_path = ai_voice.generate_tts_mp3(text, voice=voice, mp3_path=mp3_path)
+        mp3_path = ai_voice.generate_tts_mp3(
+            text, voice=voice, mp3_path=mp3_path)
 
     # Remove the hourglass reaction and react with a sound icon.
     await message.remove_reaction("⏳", client.user)
     await message.add_reaction("🔊")
 
     # Play the message in the user's voice channel.
-    await play_tts_in_channel(message.author.voice.channel, mp3_path)
+    try:
+        await play_tts_in_channel(message.author.voice.channel, mp3_path)
+    except discord.errors.ClientException as e:
+        print(e)
+        # Remove the sound icon reaction and react with a cross.
+        await message.remove_reaction("🔊", client.user)
+        await message.add_reaction("❌")
+        return
 
     # React with a checkmark once we're done.
     await message.remove_reaction("🔊", client.user)
     await message.add_reaction("✅")
-    
-    # React with a replay button.
-    await message.add_reaction("🔄")
-    
 
 
 async def play_tts_in_channel(voice_channel, audio_path):
     """ Play an audio clip in a voice channel """
+    print(
+        f"Playing audio clip {audio_path} in voice channel {voice_channel.name}")
     # Connect to the voice channel.
     print(f"  - Connecting to voice channel {voice_channel.name}")
     vc = discord.utils.get(client.voice_clients, guild=voice_channel.guild)
+
+    # If the voice client is already connected, check if it's playing a clip.
+    if vc:
+        while vc.is_playing():
+            print("  - Voice client is already playing a clip, waiting...")
+            await asyncio.sleep(1)
+
     if not vc:
         vc = await voice_channel.connect()
 
