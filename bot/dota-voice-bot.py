@@ -52,6 +52,10 @@ async def handle_message_tts(message):
         await message.remove_reaction("✅", client.user)
     except:
         pass
+    try:
+        await message.remove_reaction("❌", client.user)
+    except:
+        pass
     # Add emoji hourglass to the message as a reaction.
     await message.add_reaction("⏳")
     # Remove the prefix from the message.
