@@ -44,6 +44,7 @@ client = discord.Client(intents=intents)
 # Create the AI voice client.
 ai_voice = Voice(args.elevenlabs)
 
+
 async def handle_message_tts(message):
     """ Processes a TTS message. May be triggered by on_message() or on_reaction() """
     # Try to remove the check, it's okay if it doesn't exist.
@@ -129,6 +130,10 @@ async def on_ready():
     # Print guild info
     print(f"Active in {len(client.guilds)} guilds.")
 
+    # Print invite link.
+    permissions = 690520124992
+    print(f"Invite link: https://discordapp.com/oauth2/authorize?client_id={client.user.id}&scope=bot&permissions={permissions}")
+
 
 @client.event
 async def on_message(message):
@@ -138,7 +143,7 @@ async def on_message(message):
 
     # Help message.
     if message.content.startswith(args.prefix + "help"):
-        response = "**voices**:"
+        response = "**voices**: "
         for voice in ai_voice.voices.keys():
             response += f"`{voice}`, "
         response = response[:-2]
@@ -151,18 +156,20 @@ async def on_message(message):
     if message.content.startswith(args.prefix):
         await handle_message_tts(message)
 
+
 @client.event
 async def on_reaction_add(reaction, user):
     # Ignore own reactions.
     if user == client.user:
         return
-    
+
     # If the reaction emoji is a replay button, replay the message.
     if reaction.emoji == "🔄":
         # Remove the user's reaction.
         await reaction.remove(user)
         # Handle the message as a TTS message.
         await handle_message_tts(reaction.message)
+
 
 def main():
     client.run(args.token)
