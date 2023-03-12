@@ -6,10 +6,6 @@ This bot plays AI voices from [ElevenLabs](https://beta.elevenlabs.io) using cus
 ![ai bot demo](https://user-images.githubusercontent.com/6510862/224526407-8c490469-9a30-4d32-84dc-ca799b1aabef.gif)
 
 
-I asked for a recording of at least a minute of everybody reading something they're interested in or telling a story. We wanted to provide a voice sample that didn't sound like they were reading a script for the first time.
-
-
-
 ## Scraping Dota Wiki for audio files
 
 
