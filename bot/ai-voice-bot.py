@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Dota Voice Bot - A Discord bot that plays Dota 2 voice lines in voice channels.
-# Usage: dota-voice-bot.py --token <discord bot token> --prefix <command prefix>
+# AI Voice Bot - A Discord bot that plays AI voice lines in voice channels.
+# Usage: ai-voice-bot.py --token <discord bot token> --prefix <command prefix>
 import discord
 import argparse
 import asyncio
@@ -147,9 +147,9 @@ async def on_ready():
     """ Called after the bot successfully connects to Discord servers """
     print(f"Connected as {client.user.name} ({client.user.id})")
 
-    # Change presence to "Playing dota voices in _ guilds"
-    text = f"for {args.prefix}help"
-    activity = discord.Activity(name=text, type=discord.ActivityType.watching)
+    # Change presence to "Playing AI voices | ;help"
+    text = f"AI voices | {args.prefix}help"
+    activity = discord.Activity(name=text, type=discord.ActivityType.playing)
     await client.change_presence(activity=activity)
 
     # Print guild info
