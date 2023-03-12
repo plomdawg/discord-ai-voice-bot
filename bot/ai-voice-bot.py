@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import elevenlabslib
 import pathlib
+import logging
 
 
 class Voice:
@@ -16,9 +17,13 @@ class Voice:
         # Grab all available voices and store them in a dictionary.
         self.voices = {}
         # Skip the first 9 voices, they are the built-in voices.
-        for voice in list(self.user.get_available_voices())[9:]:
-            print(voice.initialName)
-            self.voices[voice.initialName.lower()] = voice
+        for available_voice in list(self.user.get_available_voices())[9:]:
+            # Store the name as lowercase for easier lookup.
+            voice = available_voice.initialName.lower()
+            self.voices[voice] = available_voice
+
+        logging.info(
+            f"Available voices: {', '.join(list(self.voices.keys()))}")
 
     def generate_tts_mp3(self, text, voice, mp3_path):
         """ Generate a TTS clip and save it to a file """
@@ -32,7 +37,18 @@ parser = argparse.ArgumentParser(description='Dota Voice Bot')
 parser.add_argument('--token', help='Discord bot token', required=True)
 parser.add_argument('--elevenlabs', help='ElevenLabs API key', required=True)
 parser.add_argument('--prefix', help='Command prefix', default=';')
+parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 args = parser.parse_args()
+
+# Configure logging.
+logging.basicConfig(
+    level=logging.DEBUG if args.debug else logging.INFO, # Set the log level.
+    filename='ai-voice-bot.log', # Log to a file.
+    filemode='a', # Append to the log file.
+    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p' # Set the log format.
+)
+# Set the discord logger to only log warnings and above.
+logging.getLogger("discord").setLevel(logging.WARNING)
 
 # Enable message content intent.
 intents = discord.Intents.default()
@@ -102,8 +118,8 @@ async def handle_message_tts(message):
     # Play the message in the user's voice channel.
     try:
         await play_tts_in_channel(message.author.voice.channel, mp3_path)
-    except discord.errors.ClientException as e:
-        print(e)
+    except discord.errors.ClientException as error:
+        logging.error(error)
         # Remove the sound icon reaction and react with a cross.
         await message.remove_reaction("🔊", client.user)
         await message.add_reaction("❌")
@@ -116,48 +132,46 @@ async def handle_message_tts(message):
 
 async def play_tts_in_channel(voice_channel, audio_path):
     """ Play an audio clip in a voice channel """
-    print(
-        f"Playing audio clip {audio_path} in voice channel {voice_channel.name}")
-    # Connect to the voice channel.
-    print(f"  - Connecting to voice channel {voice_channel.name}")
+    logging.info(
+        f"Playing clip {audio_path} in voice channel {voice_channel.name}")
+
+    # Get the voice client for the guild.
     vc = discord.utils.get(client.voice_clients, guild=voice_channel.guild)
 
     # If the voice client is already connected, check if it's playing a clip.
     if vc:
+        logging.debug("  - Voice client is already connected to a channel")
         while vc.is_playing():
-            print("  - Voice client is already playing a clip, waiting...")
+            logging.debug(
+                "  - Voice client is already playing a clip, waiting...")
             await asyncio.sleep(1)
 
+    # Connect to the voice channel.
     if not vc:
+        logging.debug(f"  - Connecting to voice channel {voice_channel.name}")
         vc = await voice_channel.connect()
 
     # Play the audio clip.
-    print(f"  - Playing audio clip {audio_path}")
+    logging.debug(f"  - Playing audio clip {audio_path}")
     vc.play(discord.FFmpegPCMAudio(audio_path))
-
-    # Wait until the clip finishes playing.
-    print("  - Waiting for clip to finish...")
-    while vc.is_playing():
-        await asyncio.sleep(1)
-    print("  - Done playing clip.")
 
 
 @client.event
 async def on_ready():
     """ Called after the bot successfully connects to Discord servers """
-    print(f"Connected as {client.user.name} ({client.user.id})")
+    logging.info(
+        f"Connected to {len(client.guilds)} guilds as {client.user.name} ({client.user.id})")
 
     # Change presence to "Playing AI voices | ;help"
-    text = f"AI voices | {args.prefix}help"
-    activity = discord.Activity(name=text, type=discord.ActivityType.playing)
-    await client.change_presence(activity=activity)
+    await client.change_presence(
+        activity=discord.Activity(
+            name=f"AI voices | {args.prefix}help",
+            type=discord.ActivityType.playing
+        ))
 
-    # Print guild info
-    print(f"Active in {len(client.guilds)} guilds.")
-
-    # Print invite link.
-    permissions = 690520124992
-    print(f"Invite link: https://discordapp.com/oauth2/authorize?client_id={client.user.id}&scope=bot&permissions={permissions}")
+    # Print the invite link.
+    logging.info(
+        f"Invite: https://discordapp.com/oauth2/authorize?client_id={client.user.id}&scope=bot&permissions=690520124992")
 
 
 @client.event
@@ -168,6 +182,8 @@ async def on_message(message):
 
     # Help message.
     if message.content.startswith(args.prefix + "help"):
+        logging.info(
+            f"Help message requested by {message.author.name} ({message.author.id})")
         response = "**voices**: "
         for voice in ai_voice.voices.keys():
             response += f"`{voice}`, "
