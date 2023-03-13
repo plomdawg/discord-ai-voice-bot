@@ -28,7 +28,7 @@ class Voice:
     def generate_tts_mp3(self, text, voice, mp3_path):
         """ Generate a TTS clip and save it to a file """
         elevenlabslib.helpers.save_bytes_to_path(
-            mp3_path, self.voices[voice].generate_audio_bytes(text, stability=0.1))
+            mp3_path, self.voices[voice].generate_audio_bytes(text, stability=0.35))
         return mp3_path
 
 
@@ -42,10 +42,11 @@ args = parser.parse_args()
 
 # Configure logging.
 logging.basicConfig(
-    level=logging.DEBUG if args.debug else logging.INFO, # Set the log level.
-    filename='ai-voice-bot.log', # Log to a file.
-    filemode='a', # Append to the log file.
-    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p' # Set the log format.
+    level=logging.DEBUG if args.debug else logging.INFO,  # Set the log level.
+    filename='ai-voice-bot.log',  # Log to a file.
+    filemode='a',  # Append to the log file.
+    # Set the log format.
+    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p'
 )
 # Set the discord logger to only log warnings and above.
 logging.getLogger("discord").setLevel(logging.WARNING)
@@ -111,13 +112,30 @@ async def handle_message_tts(message):
         mp3_path = ai_voice.generate_tts_mp3(
             text, voice=voice, mp3_path=mp3_path)
 
+    # Find the user's voice channel.
+    voice_channel = None
+
+    # Check if the user is in a voice channel.
+    # If not, let the user know they need to be in a voice channel.
+    voice_channel = None
+    try:
+        voice_channel = message.author.voice.channel
+    except AttributeError:
+        pass
+        
+    # Make sure we found a voice channel.
+    if voice_channel is None:
+        await message.remove_reaction("⏳", client.user)
+        await message.add_reaction("❌")
+        await message.reply(f"{message.author.mention} You must be in a voice channel to play a message.")
+
     # Remove the hourglass reaction and react with a sound icon.
     await message.remove_reaction("⏳", client.user)
     await message.add_reaction("🔊")
 
     # Play the message in the user's voice channel.
     try:
-        await play_tts_in_channel(message.author.voice.channel, mp3_path)
+        await play_tts_in_channel(voice_channel, mp3_path)
     except discord.errors.ClientException as error:
         logging.error(error)
         # Remove the sound icon reaction and react with a cross.
@@ -133,7 +151,7 @@ async def handle_message_tts(message):
 async def play_tts_in_channel(voice_channel, audio_path):
     """ Play an audio clip in a voice channel """
     logging.info(
-        f"Playing clip {audio_path} in voice channel {voice_channel.name}")
+        f"Playing clip {audio_path} in voice channel {voice_channel}")
 
     # Get the voice client for the guild.
     vc = discord.utils.get(client.voice_clients, guild=voice_channel.guild)
@@ -199,17 +217,28 @@ async def on_message(message):
 
 
 @client.event
-async def on_reaction_add(reaction, user):
-    # Ignore own reactions.
-    if user == client.user:
+async def on_raw_reaction_add(payload):
+    print(payload)
+    # Only handle reactions on messages in a guild.
+    if payload.guild_id is None:
         return
 
+    # Ignore bot reactions.
+    if payload.member.bot:
+        return
+
+    # Find the user from the payload.
+    user = await client.fetch_user(payload.user_id)
+
+    # Find the message that was reacted to using the message ID
+    message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+
     # If the reaction emoji is a replay button, replay the message.
-    if reaction.emoji == "🔄":
+    if payload.emoji.name == "🔄":
         # Remove the user's reaction.
-        await reaction.remove(user)
+        await message.remove_reaction(emoji=payload.emoji, member=payload.member)
         # Handle the message as a TTS message.
-        await handle_message_tts(reaction.message)
+        await handle_message_tts(message)
 
 
 def main():
