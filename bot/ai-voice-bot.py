@@ -7,6 +7,7 @@ import asyncio
 import elevenlabslib
 import pathlib
 import logging
+import random
 
 
 class Voice:
@@ -76,20 +77,25 @@ async def handle_message_tts(message):
     # Add emoji hourglass to the message as a reaction.
     await message.add_reaction("⏳")
     # Remove the prefix from the message.
-    text = message.content[len(args.prefix):]
-    # Remove the mention from the message.
-    text = text.replace(f"<@{client.user.id}>", '').strip()
-    # Default to the mark voice.
-    voice = "mark"
+    text = message.content[len(args.prefix):].strip()
+
+    # Default to a random voice.
+    random_voice = True
+    voice = random.choice(list(ai_voice.voices.keys()))
+
     # Check if the message starts with the name of a voice
     for voice_name in ai_voice.voices.keys():
         if text.startswith(f"{voice_name}:") or text.startswith(f"{voice_name};"):
             voice = voice_name
             # Strip the name and colon from the message
             text = text[len(voice_name)+1:].strip()
+            random_voice = False
+            break
         elif text.startswith(f"{voice_name}"):
             voice = voice_name
             text = text[len(voice_name):].strip()
+            random_voice = False
+            break
 
     # Let the user know if the message is too long.
     if len(text) > 420:
@@ -218,7 +224,6 @@ async def on_message(message):
 
 @client.event
 async def on_raw_reaction_add(payload):
-    print(payload)
     # Only handle reactions on messages in a guild.
     if payload.guild_id is None:
         return
