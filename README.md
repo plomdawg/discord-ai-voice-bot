@@ -2,8 +2,9 @@
 
 This bot plays AI voices from [ElevenLabs](https://beta.elevenlabs.io) using custom made voices from my friends.
 
+Here's a demo of playing a TTS message in a voice channel. The 🔄 emoji is used to replay the cached `.mp3` file.
 
-![ai bot demo](https://user-images.githubusercontent.com/6510862/224526407-8c490469-9a30-4d32-84dc-ca799b1aabef.gif)
+![Discord_QXzOSBmMNH](https://user-images.githubusercontent.com/6510862/224864185-ecce62ad-f27b-4634-a6e0-5a3205b7c630.gif)
 
 
 ## Scraping Dota Wiki for audio files
