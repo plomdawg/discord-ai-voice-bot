@@ -126,7 +126,7 @@ async def handle_message_tts(message, user):
     # Keep track of the message ID so we can edit it later.
     # Start the color off as gray.
     embed = discord.Embed(
-        title=text,
+        description=text,
         color=0x808080
     )
 
