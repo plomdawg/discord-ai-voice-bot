@@ -299,6 +299,58 @@ async def on_raw_reaction_add(payload):
         await handle_message_tts(message, user)
 
 
+@client.event
+async def on_voice_state_update(member, before, after):
+    """ Called when a user changes their voice state
+
+    Args:
+        member - The Member whose voice states changed.
+        before - The VoiceState prior to the changes.
+        after  - The VoiceState after to the changes.
+
+    Leaves and clears the queue if the bot is left alone for 3 minutes
+    """
+    # Try to find the voice client for this guild.
+    voice_client = None
+    for vc in client.voice_clients:
+        if vc.guild == member.guild:
+            voice_client = vc
+            break
+    
+    # Nothing to do if the bot is not in a voice channel.
+    if voice_client is None:
+        return
+    
+    # If there are any non-bots in the channel, do nothing.
+    for user in voice_client.channel.members:
+        if not user.bot:
+            return
+
+    # Save the bot's current channel.
+    bot_channel = voice_client.channel
+
+    # If the bot is alone in the channel, start the timer.
+    # Loop until somebody comes back, or the timer runs out.
+    timeout = 60  # seconds before disconnecting
+    step = 15  # seconds between checks
+    for _ in range(0, int(timeout/step)):
+        await asyncio.sleep(step)
+        
+        # Check if a non-bot has joined the channel.
+        if any([not user.bot for user in voice_client.channel.members]):
+            return
+        
+        # Check if the bot has been disconnected.
+        if voice_client is None or not voice_client.is_connected():
+            return
+
+        # Check if the bot has been moved to a different channel.
+        if voice_client.channel is not bot_channel:
+            return
+
+    # If the bot is still alone, disconnect.
+    await voice_client.disconnect()
+
 def main():
     client.run(args.token)
 
