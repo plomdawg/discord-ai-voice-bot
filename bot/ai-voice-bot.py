@@ -154,11 +154,11 @@ async def handle_message_tts(message, user):
     async def fail(reason):
         # Set the embed color to red.
         embed.color = 0xff0000
-        
+
         # Set the embed description to the error message.
         embed.description = f"Failed! {reason}"
         await response.edit(embed=embed)
-        
+
         # Respond with the error message.
         await message.channel.send(f"{user.mention} {reason}")
 
@@ -316,14 +316,14 @@ async def on_voice_state_update(member, before, after):
         if vc.guild == member.guild:
             voice_client = vc
             break
-    
+
     # Nothing to do if the bot is not in a voice channel.
     if voice_client is None:
         return
-    
+
     # If there are any non-bots in the channel, do nothing.
     if any([not user.bot for user in voice_client.channel.members]):
-            return
+        return
 
     # Save the bot's current channel.
     bot_channel = voice_client.channel
@@ -334,11 +334,11 @@ async def on_voice_state_update(member, before, after):
     step = 15  # seconds between checks
     for _ in range(0, int(timeout/step)):
         await asyncio.sleep(step)
-        
+
         # Check if a non-bot has joined the channel.
         if any([not user.bot for user in voice_client.channel.members]):
             return
-        
+
         # Check if the bot has been disconnected.
         if voice_client is None or not voice_client.is_connected():
             return
@@ -349,6 +349,7 @@ async def on_voice_state_update(member, before, after):
 
     # If the bot is still alone, disconnect.
     await voice_client.disconnect()
+
 
 def main():
     client.run(args.token)
