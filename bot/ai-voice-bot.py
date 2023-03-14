@@ -178,9 +178,7 @@ async def handle_message_tts(message, user):
         voice_channel = user.voice.channel
     except AttributeError:
         for channel in client.get_guild(message.guild.id).voice_channels:
-            print(channel)
             for member in channel.members:
-                print(member)
                 if member.id == user.id:
                     voice_channel = channel
                     break
