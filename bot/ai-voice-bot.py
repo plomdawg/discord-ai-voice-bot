@@ -87,16 +87,16 @@ async def remove_reactions(message, emojis=["✅", "❌", "⏳", "🔄"]):
 
 async def handle_message_tts(message, user):
     """ Processes a TTS message. May be triggered by on_message() or on_reaction() """
-    # Set the only reaction emoji to an hourglass.
+    # Remove any existing reactions.
     await remove_reactions(message)
-    await message.add_reaction("⏳")
 
     # Remove the prefix from the message.
     text = message.content[len(args.prefix):].strip()
 
     # Default to a random voice.
+    # Use the message ID as the seed for the random voice so we can reproduce it later.
     random_voice = True
-    voice = random.choice(list(ai_voice.voices.keys()))
+    voice = random.Random(message.id).choice(list(ai_voice.voices.keys()))
 
     # Check if the message starts with the name of a voice
     for voice_name in ai_voice.voices.keys():
@@ -114,7 +114,6 @@ async def handle_message_tts(message, user):
 
     # Let the user know if the message is too long.
     if len(text) > 420:
-        await remove_reactions(message, "⏳")
         await message.add_reaction("❌")
         return await message.channel.send(f"{user.mention} Message too long, please keep it under 420 characters.")
 
@@ -124,9 +123,10 @@ async def handle_message_tts(message, user):
 
     # Send a message to the channel that the message was sent in.
     # Keep track of the message ID so we can edit it later.
+    # Start the color off as gray.
     embed = discord.Embed(
         title=text,
-        color=0xffd500,  # yellow
+        color=0x808080
     )
 
     # Add the voice to the message. Note if it's a random voice.
@@ -141,7 +141,7 @@ async def handle_message_tts(message, user):
 
     # Calculate the cost and add it to the footer.
     if mp3_path.exists():
-        footer += f" cost: $0 (cached replay!)"
+        footer += f" cost: $0 (cached!)"
     else:
         footer += f" cost: {calculate_cost(text)}"
 
@@ -151,11 +151,14 @@ async def handle_message_tts(message, user):
 
     # Edit the response message if anything goes wrong.
     async def fail(reason):
-        # Set the embed color to red. Remove the hourglass emoji. Reply with the reason.
+        # Set the embed color to red.
         embed.color = 0xff0000
+        
+        # Set the embed description to the error message.
+        embed.description = f"Failed! {reason}"
         await response.edit(embed=embed)
-        await remove_reactions(message, "⏳")
-        await message.add_reaction("❌")
+        
+        # Respond with the error message.
         await message.channel.send(f"{user.mention} {reason}")
 
     # Make sure the tts directory exists.
@@ -163,10 +166,6 @@ async def handle_message_tts(message, user):
 
     # React with a replay button.
     await message.add_reaction("🔄")
-
-    # Generate the TTS clip if the mp3 file doesn't exist.
-    if not mp3_path.exists():
-        ai_voice.generate_tts_mp3(text, voice=voice, mp3_path=mp3_path)
 
     # Find the user's voice channel.
     voice_channel = None
@@ -183,9 +182,13 @@ async def handle_message_tts(message, user):
     if voice_channel is None:
         return await fail("You must be in a voice channel to play a message.")
 
-    # Remove the hourglass reaction and react with a sound icon.
-    await message.remove_reaction("⏳", client.user)
-    await message.add_reaction("🔊")
+    # Generate the TTS clip if the mp3 file doesn't exist.
+    if not mp3_path.exists():
+        ai_voice.generate_tts_mp3(text, voice=voice, mp3_path=mp3_path)
+
+    # Change the embed color to a light blue.
+    embed.color = 0x007fcd
+    await response.edit(embed=embed)
 
     # Play the message in the user's voice channel.
     try:
