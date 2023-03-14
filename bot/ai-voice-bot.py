@@ -322,8 +322,7 @@ async def on_voice_state_update(member, before, after):
         return
     
     # If there are any non-bots in the channel, do nothing.
-    for user in voice_client.channel.members:
-        if not user.bot:
+    if any([not user.bot for user in voice_client.channel.members]):
             return
 
     # Save the bot's current channel.
