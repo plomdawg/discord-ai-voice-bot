@@ -9,28 +9,7 @@ import pathlib
 import logging
 import random
 
-
-class Voice:
-    def __init__(self, api_key):
-        self.api_key = api_key
-        self.user = elevenlabslib.ElevenLabsUser(api_key)
-
-        # Grab all available voices and store them in a dictionary.
-        self.voices = {}
-        # Skip the first 9 voices, they are the built-in voices.
-        for available_voice in list(self.user.get_available_voices())[9:]:
-            # Store the name as lowercase for easier lookup.
-            voice = available_voice.initialName.lower()
-            self.voices[voice] = available_voice
-
-        logging.info(
-            f"Available voices: {', '.join(list(self.voices.keys()))}")
-
-    def generate_tts_mp3(self, text, voice, mp3_path):
-        """ Generate a TTS clip and save it to a file """
-        elevenlabslib.helpers.save_bytes_to_path(
-            mp3_path, self.voices[voice].generate_audio_bytes(text, stability=0.35))
-        return mp3_path
+import elevenlabs
 
 
 # Parse command line arguments.
@@ -44,8 +23,6 @@ args = parser.parse_args()
 # Configure logging.
 logging.basicConfig(
     level=logging.DEBUG if args.debug else logging.INFO,  # Set the log level.
-    filename='ai-voice-bot.log',  # Log to a file.
-    filemode='a',  # Append to the log file.
     # Set the log format.
     format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p'
 )
@@ -61,20 +38,8 @@ intents.members = True
 client = discord.Client(intents=intents)
 
 # Create the AI voice client.
-ai_voice = Voice(args.elevenlabs)
-
-
-def calculate_cost(text):
-    """ Calculates the cost of a TTS message """
-    # Starter tier gives 40,000 characters per month for $5.
-    #cost_per_character = 5 / 40000
-    # Creator tier gives 140,000 characters per month for $22.
-    # And you can buy 1000 additional characters for $0.30
-    #cost_per_character = 22 / 140000
-    # The estimated cost with additional characters is about 5000 characters per dollar.
-    cost_per_character = 0.0002  # 1 / 5000
-    cost = round(len(text) * cost_per_character, 8)
-    return f"${cost}"
+ai_voice = elevenlabs.Voice(args.elevenlabs)
+logging.info(f"Available voices: {', '.join(list(ai_voice.voices.keys()))}")
 
 
 async def remove_reactions(message, emojis=["❌", "🔄"]):
@@ -144,7 +109,7 @@ async def handle_message_tts(message, user):
     if mp3_path.exists():
         footer += f" cost: $0 (cached!)"
     else:
-        footer += f" cost: {calculate_cost(text)}"
+        footer += f" cost: {elevenlabs.calculate_cost(text)}"
 
     # Set the footer and send the message.
     embed.set_footer(text=footer)
