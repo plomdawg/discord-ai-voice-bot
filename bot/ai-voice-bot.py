@@ -130,7 +130,7 @@ async def handle_message_tts(message, user):
     )
 
     # Add the voice to the message. Note if it's a random voice.
-    footer = f"- **{voice}** (random)" if random_voice else f"- {voice}"
+    footer = f"- {voice} (random)" if random_voice else f"- {voice}"
 
     # Add the user that requested the message to the footer.
     footer += f" (requested by @{message.author.name})"
