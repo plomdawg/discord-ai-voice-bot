@@ -63,19 +63,34 @@ client = discord.Client(intents=intents)
 ai_voice = Voice(args.elevenlabs)
 
 
-async def handle_message_tts(message):
+def calculate_cost(text):
+    """ Calculates the cost of a TTS message """
+    # Starter tier gives 40,000 characters per month for $5.
+    #cost_per_character = 5 / 40000
+    # Creator tier gives 140,000 characters per month for $22.
+    # And you can buy 1000 additional characters for $0.30
+    #cost_per_character = 22 / 140000
+    # The estimated cost with additional characters is about 5000 characters per dollar.
+    cost_per_character = 0.0002  # 1 / 5000
+    cost = round(len(text) * cost_per_character, 8)
+    return f"${cost}"
+
+
+async def remove_reactions(message, emojis=["✅", "❌", "⏳", "🔄"]):
+    """ Remove reactions from a message without erroring if the reaction doesn't exist """
+    for emoji in emojis:
+        try:
+            await message.remove_reaction(emoji, client.user)
+        except discord.errors.NotFound:
+            pass
+
+
+async def handle_message_tts(message, user):
     """ Processes a TTS message. May be triggered by on_message() or on_reaction() """
-    # Try to remove the check, it's okay if it doesn't exist.
-    try:
-        await message.remove_reaction("✅", client.user)
-    except:
-        pass
-    try:
-        await message.remove_reaction("❌", client.user)
-    except:
-        pass
-    # Add emoji hourglass to the message as a reaction.
+    # Set the only reaction emoji to an hourglass.
+    await remove_reactions(message)
     await message.add_reaction("⏳")
+
     # Remove the prefix from the message.
     text = message.content[len(args.prefix):].strip()
 
@@ -99,24 +114,59 @@ async def handle_message_tts(message):
 
     # Let the user know if the message is too long.
     if len(text) > 420:
-        await message.remove_reaction("⏳", client.user)
+        await remove_reactions(message, "⏳")
         await message.add_reaction("❌")
-        return await message.channel.send(f"{message.author.mention} Message too long, please keep it under 420 characters.")
+        return await message.channel.send(f"{user.mention} Message too long, please keep it under 420 characters.")
+
+    # Use message ID as the file name.
+    tts_path = pathlib.Path("tts")
+    mp3_path = tts_path / f"{message.id}.mp3"
+
+    # Send a message to the channel that the message was sent in.
+    # Keep track of the message ID so we can edit it later.
+    embed = discord.Embed(
+        title=text,
+        color=0xffd500,  # yellow
+    )
+
+    # Add the voice to the message. Note if it's a random voice.
+    footer = f"- **{voice}** (random)" if random_voice else f"- {voice}"
+
+    # Add the user that requested the message to the footer.
+    footer += f" (requested by @{message.author.name})"
+
+    # If this is a replay, add the replay requester.
+    if user != message.author or mp3_path.exists():
+        footer += f" (replayed by @{user.name})"
+
+    # Calculate the cost and add it to the footer.
+    if mp3_path.exists():
+        footer += f" cost: $0 (cached replay!)"
+    else:
+        footer += f" cost: {calculate_cost(text)}"
+
+    # Set the footer and send the message.
+    embed.set_footer(text=footer)
+    response = await message.channel.send(embed=embed)
+
+    # Edit the response message if anything goes wrong.
+    async def fail(reason):
+        # Set the embed color to red. Remove the hourglass emoji. Reply with the reason.
+        embed.color = 0xff0000
+        await response.edit(embed=embed)
+        await remove_reactions(message, "⏳")
+        await message.add_reaction("❌")
+        await message.channel.send(f"{user.mention} {reason}")
 
     # Make sure the tts directory exists.
-    tts_path = pathlib.Path("tts")
     tts_path.mkdir(parents=True, exist_ok=True)
 
     # React with a replay button.
     await message.add_reaction("🔄")
 
-    # Generate mp3 file path using the message ID.
-    mp3_path = tts_path / f"{message.id}.mp3"
-
-    # Generate the TTS clip if it doesn't exist.
+    # Generate the TTS clip if the mp3 file doesn't exist.
     if not mp3_path.exists():
-        mp3_path = ai_voice.generate_tts_mp3(
-            text, voice=voice, mp3_path=mp3_path)
+        ai_voice.generate_tts_mp3(text, voice=voice, mp3_path=mp3_path)
 
     # Find the user's voice channel.
     voice_channel = None
@@ -125,15 +175,13 @@ async def handle_message_tts(message):
     # If not, let the user know they need to be in a voice channel.
     voice_channel = None
     try:
-        voice_channel = message.author.voice.channel
+        voice_channel = user.voice.channel
     except AttributeError:
         pass
-        
+
     # Make sure we found a voice channel.
     if voice_channel is None:
-        await message.remove_reaction("⏳", client.user)
-        await message.add_reaction("❌")
-        await message.reply(f"{message.author.mention} You must be in a voice channel to play a message.")
+        return await fail("You must be in a voice channel to play a message.")
 
     # Remove the hourglass reaction and react with a sound icon.
     await message.remove_reaction("⏳", client.user)
@@ -144,10 +192,11 @@ async def handle_message_tts(message):
         await play_tts_in_channel(voice_channel, mp3_path)
     except discord.errors.ClientException as error:
         logging.error(error)
-        # Remove the sound icon reaction and react with a cross.
-        await message.remove_reaction("🔊", client.user)
-        await message.add_reaction("❌")
-        return
+        return await fail(error)
+
+    # Edit the embed color to green.
+    embed.color = 0x00ff00
+    await response.edit(embed=embed)
 
     # React with a checkmark once we're done.
     await message.remove_reaction("🔊", client.user)
@@ -219,7 +268,7 @@ async def on_message(message):
 
     # Play TTS messages that start with the prefix.
     if message.content.startswith(args.prefix):
-        await handle_message_tts(message)
+        await handle_message_tts(message, message.author)
 
 
 @client.event
@@ -243,7 +292,7 @@ async def on_raw_reaction_add(payload):
         # Remove the user's reaction.
         await message.remove_reaction(emoji=payload.emoji, member=payload.member)
         # Handle the message as a TTS message.
-        await handle_message_tts(message)
+        await handle_message_tts(message, user)
 
 
 def main():
