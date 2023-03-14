@@ -55,6 +55,7 @@ logging.getLogger("discord").setLevel(logging.WARNING)
 # Enable message content intent.
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 # Create the discord client.
 client = discord.Client(intents=intents)
@@ -76,7 +77,7 @@ def calculate_cost(text):
     return f"${cost}"
 
 
-async def remove_reactions(message, emojis=["✅", "❌", "⏳", "🔄"]):
+async def remove_reactions(message, emojis=["❌", "🔄"]):
     """ Remove reactions from a message without erroring if the reaction doesn't exist """
     for emoji in emojis:
         try:
@@ -176,7 +177,13 @@ async def handle_message_tts(message, user):
     try:
         voice_channel = user.voice.channel
     except AttributeError:
-        pass
+        for channel in client.get_guild(message.guild.id).voice_channels:
+            print(channel)
+            for member in channel.members:
+                print(member)
+                if member.id == user.id:
+                    voice_channel = channel
+                    break
 
     # Make sure we found a voice channel.
     if voice_channel is None:
@@ -200,10 +207,6 @@ async def handle_message_tts(message, user):
     # Edit the embed color to green.
     embed.color = 0x00ff00
     await response.edit(embed=embed)
-
-    # React with a checkmark once we're done.
-    await message.remove_reaction("🔊", client.user)
-    await message.add_reaction("✅")
 
 
 async def play_tts_in_channel(voice_channel, audio_path):
