@@ -23,15 +23,14 @@ Here's a demo of playing a TTS message in a voice channel. The 🔄 emoji is use
     ```
 
 
-## Scraping Dota Wiki for audio files
+## Scraping the web for audio files
 
+To generate audio files for a new voice, you can use the `scrape-audio-clips.py` script.
 
 Run the scraper with the following command:
 
 ```console
-cd audio
-./generate-dota-voice-model.py --url https://dota2.fandom.com/wiki/Abaddon/Responses --voice abaddon
+python scrape-audio-clips.py --url https://dota2.fandom.com/wiki/Abaddon/Responses --voice abaddon
 ```
 
-This will generate an audio file, `abaddon.mp3`, which you can [upload to Elevenlabs](https://beta.elevenlabs.io/voice-lab) to create a custom voice model.
-
+This will create, `abaddon.mp3`, which you can [upload to Elevenlabs](https://beta.elevenlabs.io/voice-lab) to create a custom voice model.

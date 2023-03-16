@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # This script downloads all audio files from a given webpage.
 # It then combines them into a single audio file.
-# Usage: python generate-dota-voice-model.py --url <url> --voice <voice name>
-# Example: python generate-dota-voice-model.py --url https://dota2.fandom.com/wiki/Crystal_Maiden/Responses --voice crystal_maiden
+# Usage: python scrape-audio-clips.py --url <url> --voice <voice name>
+# Example: python scrape-audio-clips.py --url https://dota2.fandom.com/wiki/Crystal_Maiden/Responses --voice crystal_maiden
 
 import requests
 import argparse
@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 import pydub
 
 # Parse command line arguments.
-parser = argparse.ArgumentParser(description='Generate Dota Voice Model')
+parser = argparse.ArgumentParser(description='Download and combine audio files from a webpage')
 parser.add_argument('--url', help='URL to download audio files from', required=True)
 parser.add_argument('--download', help='Only download the audio files', action='store_true')
 parser.add_argument('--combine', help='Only combine the audio files', action='store_true')
