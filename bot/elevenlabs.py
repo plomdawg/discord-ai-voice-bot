@@ -77,7 +77,7 @@ class TTS:
         # Check if the message starts with the name of a voice.
         logging.debug(f"Getting voice for message: {self.text}")
         for voice_name in self.elevenlabs.voices.keys():
-            if self.text.startswith(voice_name):
+            if self.text.lower().startswith(voice_name):
                 logging.debug(f"Found voice {voice_name} in message.")
                 # Strip the name from the message.
                 self.text = self.text[len(voice_name):].strip()
