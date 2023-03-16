@@ -30,7 +30,7 @@ class TTS:
         logging.debug(f" - Voice: {self.voice}")
 
     @property
-    def cost(text):
+    def cost(self):
         """ Calculates the cost of a TTS message. """
         # Starter tier gives 40,000 characters per month for $5.
         #cost_per_character = 5 / 40000
@@ -39,7 +39,7 @@ class TTS:
         #cost_per_character = 22 / 140000
         # The estimated cost with additional characters is about 5000 characters per dollar.
         cost_per_character = 0.0002  # 1 / 5000
-        cost = round(len(text) * cost_per_character, 8)
+        cost = round(len(self.text) * cost_per_character, 8)
         return f"${cost}"
 
     @property
@@ -47,12 +47,10 @@ class TTS:
         """ Generate a TTS clip and return it as bytes. """
         if self._bytes is None:
             logging.info(f"Generating TTS clip for text {self.text}")
-            # Get the voice object for this message.
-            voice = self.elevenlabs.voices[self.voice]
             # Time how long it takes to generate the audio bytes.
             start = time.time()
             # Set the stability to 0.35 to get a more natural sounding voice.
-            self._bytes = voice.generate_audio_bytes(self.text, stability=0.35)
+            self._bytes = self.elevenlabs.voices[self.voice].generate_audio_bytes(self.text, stability=0.35)
             # Calculate how long it took to generate the clip.
             self.seconds = round(time.time() - start, 2)
         logging.debug(f"Generated TTS clip for message in {self.seconds} seconds")
@@ -74,16 +72,18 @@ class TTS:
         voice = random.Random(seed).choice(list(self.elevenlabs.voices.keys()))
 
         # Check if the message starts with the name of a voice.
+        logging.debug(f"Getting voice for message: {self.text}")
         for voice_name in self.elevenlabs.voices.keys():
             # The voice may be followed by a colon or semicolon.
             if self.text.startswith(f"{voice_name}:") or self.text.startswith(f"{voice_name};"):
                 # Set the voice to the specified voice.
-                self.voice = voice_name
+                voice = voice_name
                 # Strip the name and colon from the message.
                 self.text = self.text[len(voice_name)+1:].strip()
                 # We are not using a random voice.
                 self.random_voice = False
                 # Stop looking for a voice in case there are multiple.
+                logging.debug(f"Found voice {voice_name} in message.")
                 break
 
         return voice

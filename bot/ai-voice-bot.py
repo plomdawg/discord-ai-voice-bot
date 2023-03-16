@@ -48,7 +48,7 @@ async def remove_reactions(message, emojis=["❌", "🔄"]):
             pass
 
 
-def get_voice_channel(user):
+def get_voice_channel(user, guild_id):
     # Find the user's voice channel.
     voice_channel = None
 
@@ -58,7 +58,7 @@ def get_voice_channel(user):
     try:
         voice_channel = user.voice.channel
     except AttributeError:
-        for channel in client.get_guild(user.guild.id).voice_channels:
+        for channel in client.get_guild(guild_id).voice_channels:
             for member in channel.members:
                 if member.id == user.id:
                     voice_channel = channel
@@ -80,7 +80,7 @@ async def handle_message_tts(message, user):
         return await message.channel.send(f"{user.mention} Message too long, please keep it under 420 characters.")
 
     # Get the voice for this message.
-    tts = ai_voice.get_tts(text=text, seed=message.id, path="tts-discord")
+    tts = ai_voice.get_tts(text=text, message_id=message.id, path="tts-discord")
 
     # Send a message to the channel that the message was sent in.
     # Keep track of the message ID so we can edit it later.
@@ -104,7 +104,7 @@ async def handle_message_tts(message, user):
     if tts.mp3_path.exists():
         footer += f" cost: $0 (cached!)"
     else:
-        footer += f" speed: {tts.seconds}s | cost: {tts.cost} "
+        footer += f" cost: {tts.cost}"
 
     # Set the footer and send the message.
     embed.set_footer(text=footer)
@@ -126,14 +126,19 @@ async def handle_message_tts(message, user):
     await message.add_reaction("🔄")
 
     # Get the voice channel the user is in.
-    voice_channel = get_voice_channel(client, user)
+    voice_channel = get_voice_channel(user, message.guild.id)
 
     # Make sure we found a voice channel.
     if voice_channel is None:
         return await fail("You must be in a voice channel to play a message.")
 
     # Generate the TTS clip.
-    tts.generate_mp3()
+    mp3 = tts.mp3
+    
+    # Add the time it took to generate the clip to the footer.
+    if tts.seconds > 0:
+        footer += f" speed: {tts.seconds:.4f}s)"
+        embed.set_footer(text=footer)
 
     # Change the embed color to a light blue.
     embed.color = 0x007fcd
@@ -141,7 +146,7 @@ async def handle_message_tts(message, user):
 
     # Play the message in the user's voice channel.
     try:
-        await play_mp3_in_channel(voice_channel, tts.mp3_path)
+        await play_mp3_in_channel(voice_channel, mp3)
     except discord.errors.ClientException as error:
         logging.error(error)
         return await fail(error)
