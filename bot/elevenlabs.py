@@ -77,16 +77,18 @@ class TTS:
         # Check if the message starts with the name of a voice.
         logging.debug(f"Getting voice for message: {self.text}")
         for voice_name in self.elevenlabs.voices.keys():
-            # The voice may be followed by a colon or semicolon.
-            if self.text.startswith(f"{voice_name}:") or self.text.startswith(f"{voice_name};"):
+            if self.text.startswith(voice_name):
+                logging.debug(f"Found voice {voice_name} in message.")
+                # Strip the name from the message.
+                self.text = self.text[len(voice_name):].strip()
+                # The voice may be followed by a colon or semicolon.
+                if self.text.startswith(":") or self.text.startswith(";"):
+                    self.text = self.text[1:].strip()
                 # Set the voice to the specified voice.
                 voice = voice_name
-                # Strip the name and colon from the message.
-                self.text = self.text[len(voice_name)+1:].strip()
                 # We are not using a random voice.
                 self.random_voice = False
                 # Stop looking for a voice in case there are multiple.
-                logging.debug(f"Found voice {voice_name} in message.")
                 break
 
         return voice

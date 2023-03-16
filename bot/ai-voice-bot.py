@@ -137,7 +137,7 @@ async def handle_message_tts(message, user):
     
     # Add the time it took to generate the clip to the footer.
     if tts.seconds > 0:
-        footer += f" speed: {tts.seconds:.4f}s)"
+        footer += f" in {tts.seconds:.2f}s"
         embed.set_footer(text=footer)
 
     # Change the embed color to a light blue.
@@ -214,7 +214,7 @@ async def on_message(message):
             response += f"`{voice}`, "
         response = response[:-2]
         response += "\n"
-        response += "**usage**: `;[text]` or `;[voice]: [text]`"
+        response += "**usage**: `;[text]` or `;[voice] [text]`"
         await message.channel.send(response)
         return
 
