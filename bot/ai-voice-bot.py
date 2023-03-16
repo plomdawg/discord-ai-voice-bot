@@ -18,10 +18,9 @@ parser.add_argument('--prefix', help='Command prefix', default=';')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 args = parser.parse_args()
 
-# Configure logging.
+# Configure logging. Log messages with the date and time.
 logging.basicConfig(
-    level=logging.DEBUG if args.debug else logging.INFO,  # Set the log level.
-    # Set the log format.
+    level=logging.DEBUG if args.debug else logging.INFO,
     format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p'
 )
 # Set the discord logger to only log warnings and above.
