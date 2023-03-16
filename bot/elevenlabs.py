@@ -5,6 +5,7 @@ import random
 import logging
 import time
 import io
+import pydub
 
 class TTS:
     def __init__(self, elevenlabs, text, tts_path, message_id):
@@ -62,8 +63,10 @@ class TTS:
         if not self.mp3_path.exists():
             # Make sure the tts directory exists.
             self.tts_path.mkdir(parents=True, exist_ok=True)
-            # Save the audio bytes to a file.
-            elevenlabslib.helpers.save_bytes_to_path(self.mp3_path, self.bytes)
+            # Normalize the audio file.
+            raw_audio = pydub.AudioSegment.from_file(io.BytesIO(self.bytes), "mp3")  
+            normalized_sound = pydub.effects.normalize(raw_audio)
+            normalized_sound.export(self.mp3_path, format="wav")
         return self.mp3_path
 
     def get_voice(self, seed):
