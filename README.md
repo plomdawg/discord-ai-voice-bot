@@ -30,7 +30,7 @@ To generate audio files for a new voice, you can use the `scrape-audio-clips.py`
 Run the scraper with the following command:
 
 ```console
-python scrape-audio-clips.py --url https://dota2.fandom.com/wiki/Abaddon/Responses --voice abaddon
+python audio/scrape-audio-clips.py --url https://dota2.fandom.com/wiki/Abaddon/Responses --voice abaddon
 ```
 
 This will create, `abaddon.mp3`, which you can [upload to Elevenlabs](https://beta.elevenlabs.io/voice-lab) to create a custom voice model.
