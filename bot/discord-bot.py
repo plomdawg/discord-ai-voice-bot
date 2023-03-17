@@ -134,7 +134,7 @@ async def handle_message_tts(message, user):
 
     # Generate the TTS clip.
     mp3 = tts.mp3
-    
+
     # Add the time it took to generate the clip to the footer.
     if tts.seconds > 0:
         footer += f" in {tts.seconds:.2f}s"
@@ -158,22 +158,28 @@ async def handle_message_tts(message, user):
 
 async def play_mp3_in_channel(voice_channel, audio_path):
     """ Play an audio clip in a voice channel """
-    logging.info(f"Playing clip {audio_path} in voice channel {voice_channel}")
+    logging.info(f"Playing clip {audio_path} in {voice_channel}")
 
     # Get the voice client for the guild.
     vc = discord.utils.get(client.voice_clients, guild=voice_channel.guild)
 
-    # If the voice client is already connected, check if it's playing a clip.
+    # The voice client is already connected to a channel.
     if vc:
-        logging.debug("  - Voice client is already connected to a channel")
+        # Check if the voice client is already playing a clip.
+        logging.debug(f"  - Voice client is already connected to a channel: {vc.channel.name}")
         while vc.is_playing():
             logging.debug(
                 "  - Voice client is already playing a clip, waiting...")
             await asyncio.sleep(1)
 
+        # Make sure the voice client is connected to the correct channel.
+        if vc.channel is not voice_channel:
+            logging.debug(f"  - Moving to voice channel: {voice_channel.name}")
+            await vc.move_to(voice_channel)
+
     # Connect to the voice channel.
     if not vc:
-        logging.debug(f"  - Connecting to voice channel {voice_channel.name}")
+        logging.debug(f"  - Connecting to voice channel: {voice_channel.name}")
         vc = await voice_channel.connect()
 
     # Play the audio clip.
