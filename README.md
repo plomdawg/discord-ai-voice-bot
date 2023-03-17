@@ -19,7 +19,7 @@ Here's a demo of playing a TTS message in a voice channel. The 🔄 emoji is use
     ```
 1. Launch the bot.
     ```console
-    python bot/ai-voice-bot.py --token [your token here] --elevenlabs [your key here]
+    python bot/discord-bot.py --token [your token here] --elevenlabs [your key here]
     ```
 
 

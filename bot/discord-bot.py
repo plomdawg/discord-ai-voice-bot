@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # AI Voice Bot - A Discord bot that plays AI voice lines in voice channels.
-# Usage: ai-voice-bot.py --token <discord bot token> --prefix <command prefix>
+# Usage: bot/discord-bot.py --token <discord bot token> --prefix <command prefix>
 import discord
 import argparse
 import asyncio
