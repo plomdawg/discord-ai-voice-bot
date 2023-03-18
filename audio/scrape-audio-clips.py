@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# This script downloads all audio files from a given webpage.
-# It then combines them into a single audio file.
+# This script downloads all audio files from a given webpage into a single mp3.
 # Usage: python scrape-audio-clips.py --url <url> --voice <voice name>
 # Example: python scrape-audio-clips.py --url https://dota2.fandom.com/wiki/Crystal_Maiden/Responses --voice crystal_maiden
 
@@ -9,6 +8,7 @@ import argparse
 import pathlib
 from bs4 import BeautifulSoup
 import pydub
+import io
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description='Download and combine audio files from a webpage')
@@ -18,60 +18,31 @@ parser.add_argument('--combine', help='Only combine the audio files', action='st
 parser.add_argument('--voice', help='Voice name', required=True)
 args = parser.parse_args()
 
+print(f"Downloading audio files from: {args.url}")
+
 # Store audio files under files/[voice] directory.
-audio_directory = pathlib.Path(f"files/{args.voice}")
+audio_directory = pathlib.Path("files")
+audio_directory.mkdir(parents=True, exist_ok=True)
+output_mp3_path = audio_directory / f"{args.voice}.mp3"
 
-def download_mp3s():
-    # Download the webpage.
-    print(f"Downloading webpage {args.url}")
-    webpage = requests.get(args.url).text
-    soup = BeautifulSoup(webpage, 'html.parser')
+# Create an empty audio file.
+audio = pydub.AudioSegment.empty()
 
-    # Find all audio links that contain .mp3
-    links = soup.find_all('a', href=lambda href: href and ".mp3" in href)
+# Download the webpage.
+webpage = requests.get(args.url).text
+soup = BeautifulSoup(webpage, 'html.parser')
 
-    # Make sure the audio directory exists.
-    if not audio_directory.exists():
-        audio_directory.mkdir(parents=True)
-
-    # Download each audio file.
-    for i, link in enumerate(links):
-        # Get the audio file name.
-        audio_file_name = f"{args.voice} {i}.mp3"
-        audio_file_path = audio_directory / audio_file_name
-
-        # Download the audio file.
-        print(f"Downloading audio file {audio_file_name} ({i} / {len(links)})")
-        audio_file = requests.get(link['href'])
-
-        # Save the audio file.
-        with open(audio_file_path, 'wb') as f:
-            f.write(audio_file.content)
-
-
-def combine_mp3s():
-    # Combine all audio files into a single audio file.
-    sound = pydub.AudioSegment.empty()
-    files = list(audio_directory.glob("*.mp3"))
-    for i, audio_file in enumerate(files):
-        print(f"Adding: {audio_file} ({i} / {len(files)})")
-        sound += pydub.AudioSegment.from_file(audio_file, format="mp3")
-        # Add 300ms of silence.
-        sound += pydub.AudioSegment.silent(duration=300)
+# Find all .mp3 links on the webpage. 
+links = soup.find_all('a', href=lambda href: href and ".mp3" in href)
+for i, link in enumerate(links):
+    # Download the audio file.
+    print(f"Downloading mp3 {i} / {len(links)}")
+    response = requests.get(link['href'])
     
-    # Save the combined audio file.
-    output_path = audio_directory / f"{args.voice}.mp3"
-    sound.export(output_path, format="mp3")
-    print(f"Combined audio file saved to: {output_path}")
-    
-if __name__ == "__main__":
-    # Download and combine the audio files.
-    # If --download is specified, only download the audio files.
-    # If --combine is specified, only combine the audio files.
-    if args.download:
-        download_mp3s()
-    elif args.combine:
-        combine_mp3s()
-    else:
-        download_mp3s()
-        combine_mp3s()
+    # Append the sound and a 400ms silence.
+    audio += pydub.AudioSegment.from_mp3(io.BytesIO(response.content))
+    audio += pydub.AudioSegment.silent(duration=400)
+
+# Save the combined audio file.
+audio.export(output_mp3_path, format="mp3")
+print(f"Combined audio file saved to: {output_mp3_path}")
