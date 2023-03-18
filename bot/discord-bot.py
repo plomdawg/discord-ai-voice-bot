@@ -104,7 +104,7 @@ async def handle_message_tts(message, user):
     if tts.mp3_path.exists():
         footer += f" cost: $0 (cached!)"
     else:
-        footer += f" cost: {tts.cost}"
+        footer += f" cost: ${tts.cost}"
 
     # Set the footer and send the message.
     embed.set_footer(text=footer)

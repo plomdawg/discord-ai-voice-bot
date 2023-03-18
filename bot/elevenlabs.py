@@ -41,13 +41,13 @@ class TTS:
         # The estimated cost with additional characters is about 5000 characters per dollar.
         cost_per_character = 0.0002  # 1 / 5000
         cost = round(len(self.text) * cost_per_character, 8)
-        return f"${cost}"
+        return float(cost)
 
     @property
     def bytes(self):
         """ Generate a TTS clip and return it as bytes. """
         if self._bytes is None:
-            logging.info(f"Generating TTS clip for text {self.text}")
+            logging.debug(f"Generating TTS clip for text {self.text}")
             # Time how long it takes to generate the audio bytes.
             start = time.time()
             # Set the stability to 0.35 to get a more natural sounding voice.
