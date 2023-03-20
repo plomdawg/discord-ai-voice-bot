@@ -5,7 +5,7 @@ import discord
 import argparse
 import asyncio
 import pathlib
-import logging
+import coloredlogs, logging
 
 import elevenlabs
 
@@ -18,11 +18,9 @@ parser.add_argument('--prefix', help='Command prefix', default=';')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 args = parser.parse_args()
 
-# Configure logging. Log messages with the date and time.
-logging.basicConfig(
-    level=logging.DEBUG if args.debug else logging.INFO,
-    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p'
-)
+# Configure logging to print the date and time, in color.
+coloredlogs.install(fmt='%(asctime)s %(levelname)s: %(message)s', level='DEBUG' if args.debug else 'INFO')
+
 # Set the discord logger to only log warnings and above.
 logging.getLogger("discord").setLevel(logging.WARNING)
 

@@ -11,3 +11,6 @@ sounddevice
 
 # Used to normalize audio levels and combine audio files.
 pydub
+
+# Colored logs.
+coloredlogs

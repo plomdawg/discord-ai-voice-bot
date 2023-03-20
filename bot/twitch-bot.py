@@ -4,7 +4,7 @@
 # Plays a TTS sound clip when a user tips bits.
 import argparse
 import elevenlabs
-import logging
+import coloredlogs, logging
 
 from twitchio.ext import commands, sounds, pubsub
 
@@ -22,12 +22,8 @@ parser.add_argument('--prefix', help='Command prefix', default=';')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 args = parser.parse_args()
 
-# Configure logging. Log messages with the date and time.
-logging.basicConfig(
-    level=logging.DEBUG if args.debug else logging.INFO,
-    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p'
-)
-
+# Configure logging to print the date and time, in color.
+coloredlogs.install(fmt='%(asctime)s %(levelname)s: %(message)s', level='DEBUG' if args.debug else 'INFO')
 
 class Bot(commands.Bot):
 
@@ -41,8 +37,6 @@ class Bot(commands.Bot):
 
         # Create the AI voice client.
         self.elevenlabs = elevenlabs.ElevenLabsVoice(args.elevenlabs)
-        logging.info(
-            f"Available voices: {', '.join(list(self.elevenlabs.voices.keys()))}")
 
         # Keep track of number of bits donated and tts cost.
         self.bits = 0
@@ -50,8 +44,8 @@ class Bot(commands.Bot):
 
     async def event_ready(self):
         """ Called once when the bot goes online. """
-        logging.info(f"The bot is connected!")
-        logging.info(f"Logged in as {self.nick} ({self.user_id})")
+        logging.info(f"Available voices:")
+        logging.info(f" - {', '.join(list(self.elevenlabs.voices.keys()))}")
 
     async def event_message(self, message):
         logging.debug(f"event_message(): {message.raw_data}")

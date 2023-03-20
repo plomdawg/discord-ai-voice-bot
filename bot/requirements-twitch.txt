@@ -1,0 +1,7 @@
+# AI Voice https://github.com/lugia19/elevenlabslib
+elevenlabslib
+soundfile
+sounddevice
+
+# TwitchIO
+twitchio[sounds]
