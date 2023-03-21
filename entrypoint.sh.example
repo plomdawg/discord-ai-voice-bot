@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# Run the bot.
+python -u discord.py \
+    --token kIOFJSJIOPJFPIOoijiopfJIOASDFJIOfjiodsaPJFoi \
+    --elevenlabs 897f890a789afsd89098fsdki

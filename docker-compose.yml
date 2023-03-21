@@ -1,0 +1,10 @@
+version: "3.7"
+
+services:
+  discord-test-bot:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    # Mount the tts-discord directory into the container
+    volumes:
+     - ./tts-discord:/tts-discord

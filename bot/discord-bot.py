@@ -4,7 +4,6 @@
 import discord
 import argparse
 import asyncio
-import pathlib
 import logging
 
 import elevenlabs
