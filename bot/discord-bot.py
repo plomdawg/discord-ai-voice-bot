@@ -5,6 +5,7 @@ import discord
 import argparse
 import asyncio
 import logging
+import openai
 
 import elevenlabs
 
@@ -13,6 +14,7 @@ import elevenlabs
 parser = argparse.ArgumentParser(description='Dota Voice Bot')
 parser.add_argument('--token', help='Discord bot token', required=True)
 parser.add_argument('--elevenlabs', help='ElevenLabs API key', required=True)
+parser.add_argument('--openai', help='Open AI API key', required=True)
 parser.add_argument('--prefix', help='Command prefix', default=';')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 args = parser.parse_args()
@@ -37,6 +39,8 @@ client = discord.Client(intents=intents)
 ai_voice = elevenlabs.ElevenLabsVoice(args.elevenlabs)
 logging.info(f"Available voices: {', '.join(list(ai_voice.voices.keys()))}")
 
+# Set the OpenAI key.
+openai.api_key = args.openai
 
 async def remove_reactions(message, emojis=["❌", "🔄"]):
     """ Remove reactions from a message without erroring if the reaction doesn't exist """
@@ -64,6 +68,169 @@ def get_voice_channel(user, guild_id):
                     break
     return voice_channel
 
+async def messages_to_prompt(messages, system_prompt) -> str:
+    """ Convert a discord message to a prompt for the AI. """
+    prompt = [{"role": "system", "content": system_prompt}]
+    for message in messages:
+        if message.author.bot:
+            role = "assistant"
+            content = message.content
+        else:
+            role = "user"
+            content = f"{message.author.name}: {message.content}"
+        prompt.append({"role": role, "content": content})
+    return prompt
+
+async def handle_message_chatgpt(message):
+    """ Process a chat message in the #ask-chatgpt channel """
+    await message.add_reaction("👀")
+    
+    # This is a top level message.
+    if type(message.channel) == discord.TextChannel:
+        # Create a thread that last 1 hour
+        thread = await message.create_thread(name=message.content, auto_archive_duration=60)
+        
+        explanation = "Hello! Please provide a **system prompt**.\n\nIt helps establish the desired context, role, or behavior you expect from the AI while interacting with it. By providing a system message, you can guide the model to better understand the context of the conversation or task and generate more relevant and accurate responses.\n\nFor example, if you want to use GPT-4 as an assistant to provide recommendations on movies, you can start with a system message like:\n\n`'You are an AI assistant that specializes in providing movie recommendations.'`\n\nThis system message will set the context for the model, ensuring that it understands its role as a movie recommendation assistant during the conversation.\n\nYou can edit the message any time before the thread is closed."
+        
+        # Reply to the thread asking for a system prompt.
+        embed = discord.Embed(
+            description=explanation,
+            color=0x808080
+        )
+        explanation_message = await thread.send(embed=embed)
+        
+        # Wait for a response. If we don't hear back in 5 minutes, close the thread.
+        def check(m):
+            if type(m.channel) == discord.Thread:
+                if m.channel.id == thread.id:
+                    return True
+        try: 
+            user_response = await client.wait_for('message', check=check, timeout=300)
+            await user_response.add_reaction("🧠")
+            system_prompt = user_response.content
+        except asyncio.TimeoutError:
+            await thread.send("No response. Closing thread.")
+            await thread.edit(locked=True)
+    
+        # Edit the explaination message to include the system prompt.
+        embed.description = f"System Prompt:"
+        embed.color = 0x00ff00
+        #await explanation_message.edit(embed=embed)
+        
+        # Send another message containing the system prompt.
+        #embed.description = f"```{system_prompt}```"
+        #await thread.send(embed=embed)
+
+        # Remove the 👀 reaction.
+        await remove_reactions(message, ["👀"])
+        return
+    
+    # This is a reply to a thread.
+    # Find the system prompt - it is the third message in the thread.
+    # Fetch the thread and grab the third message.
+    replies = await message.channel.history(limit=100).flatten()
+
+    # Reverse the replies so the most recent is last.
+    replies.reverse()
+
+    # If there are only three messages, the third message is the system prompt.
+    # We don't need to do anything here.
+    if len(replies) == 3:
+        return await replies[2].add_reaction("✅")
+    
+    # If there are more than three messages, the third message is the system prompt and the rest are replies.
+    system_prompt = []
+    system_prompt.append("Chat will be in the form: '[username]: [message]'.")
+    system_prompt.append("Do not start the response with the username.")
+    system_prompt.append(replies[2].content.strip())
+    system_prompt = "\n".join(system_prompt)
+
+    # Remove the first 3 messages.
+    replies = replies[3:]
+
+    # Generate the prompt.    
+    prompt_messages = await messages_to_prompt(replies, system_prompt)
+    print(prompt_messages)
+    
+    # Set the max response length.
+    max_response_length = 800
+
+    # Prepare the model.
+    completion = openai.ChatCompletion.create(
+        model="gpt-4",
+        max_tokens=max_response_length,
+        messages=prompt_messages,
+        temperature=0.7,  # lower temp = more consistent responses
+    )
+    
+    # Return the content from the first choice.
+    response = completion.choices[0]['message']['content']
+    
+    # Remove the bot's name from the response.
+    response = response.replace("plombot AI: ", "")
+    
+    await message.channel.send(response)
+    await remove_reactions(message, ["👀"])
+
+async def handle_message_chatgpt_old(message):
+    """ Process a chat message in the #ask-chatgpt channel """
+    await message.add_reaction("👀")
+    # Read the chat history for this channel
+    messages = await message.channel.history(limit=11).flatten()
+    messages.reverse()
+
+
+    # Set the max response length.
+    max_response_length = 800
+    
+    # Set the system prompt.
+    #system_prompt = "I am a highly intelligent question answering bot. Start with your name, then ask a question. If you ask me a question that is rooted in truth, I will give you the answer. If you ask me a question that is nonsense, trickery, or has no clear answer, I will respond with \"Unknown\".\n\nQ: What is human life expectancy in the United States?\nA: Human life expectancy in the United States is 78 years.\n\nQ: Who was president of the United States in 1955?\nA: Dwight D. Eisenhower was president of the United States in 1955.\n\nQ: Which party did he belong to?\nA: He belonged to the Republican Party.\n\nQ: What is the square root of banana?\nA: Unknown\n\nQ: How does a telescope work?\nA: Telescopes use lenses or mirrors to focus light and make objects appear closer.\n\nQ: Where were the 1992 Olympics held?\nA: The 1992 Olympics were held in Barcelona, Spain.\n\nQ: How many squigs are in a bonk?\nA: Unknown\n\nQ: Where is the Valley of Kings?\nA:"
+    #system_prompt = "I am a highly intelligent question answering bot. Start with your name, then ask a question. If I do not know the answer, I will make one up."
+    system_prompt = []
+    system_prompt.append("You are a highly intelligent question answering bot.")
+    #system_prompt.append("You are a highly intelligent discord bot.")
+    #system_prompt.append("You are a highly intelligent question answering discord bot that loves memes.")
+    #system_prompt.append("You are a meme lord.")
+    system_prompt.append("You are not a family-friendly bot. You can use swear words.")
+    system_prompt.append("Reference memes whenever possible.")
+    #system_prompt.append("Use discord emojis.")
+    system_prompt.append("Use a lot of unicode emojis.")
+    system_prompt.append("The chat history will be given for context before the message.")
+    system_prompt.append("Chat will be in the form: '[username]: [message]'.")
+    
+    system_prompt.append("Read the sentiment of only the last message and respond with the same sentiment.")    
+    system_prompt.append("Do not include a username in the response.")
+    system_prompt.append("")
+    
+    
+    
+    #system_prompt.append("Only respond to the last question asked.")
+    
+
+    system_prompt = '\n'.join(system_prompt)
+    
+    prompt_messages = await messages_to_prompt(messages, system_prompt)
+
+    print(system_prompt)
+    
+    # Prepare the model.
+    completion = openai.ChatCompletion.create(
+        model="gpt-4",
+        max_tokens=max_response_length,
+        messages=prompt_messages,
+        temperature=0.7,  # lower temp = more consistent responses
+    )
+    
+    # Return the content from the first choice.
+    response = completion.choices[0]['message']['content']
+    
+    # Remove the bot's name from the response.
+    response = response.replace("plombot AI: ", "")
+    
+    await message.channel.send(response)
+    await remove_reactions(message, ["👀"])
+    await message.add_reaction("✅")
+    
 
 async def handle_message_tts(message, user):
     """ Processes a TTS message. May be triggered by on_message() or on_reaction() """
@@ -209,6 +376,14 @@ async def on_message(message):
     # Ignore messages from the bot itself.
     if message.author == client.user:
         return
+
+    # Messages sent to #ask-chatgpt or threads within #ask-chatgpt.
+    if type(message.channel) == discord.TextChannel:
+        if message.channel.id == 1091222348440551456:
+            return await handle_message_chatgpt(message)
+    else:
+        if message.channel.parent is not None and message.channel.parent.id == 1091222348440551456:
+            return await handle_message_chatgpt(message)
 
     # Help message.
     if message.content.startswith(args.prefix + "help"):

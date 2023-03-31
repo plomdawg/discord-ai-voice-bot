@@ -7,4 +7,5 @@ set -o pipefail
 # Run the bot.
 python -u discord.py \
     --token kIOFJSJIOPJFPIOoijiopfJIOASDFJIOfjiodsaPJFoi \
-    --elevenlabs 897f890a789afsd89098fsdki
+    --elevenlabs 897f890a789afsd89098fsdki \
+    --openai sk-12890379182704589
