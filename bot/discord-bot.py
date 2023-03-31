@@ -377,7 +377,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    # Messages sent to #ask-chatgpt or threads within #ask-chatgpt.
+    # Messages sent to chatgpt channel or threads within it.
     if type(message.channel) == discord.TextChannel:
         if message.channel.id == 1091222348440551456:
             return await handle_message_chatgpt(message)
