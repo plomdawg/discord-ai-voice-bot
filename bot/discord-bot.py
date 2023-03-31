@@ -97,37 +97,13 @@ async def handle_message_chatgpt(message):
             description=explanation,
             color=0x808080
         )
-        explanation_message = await thread.send(embed=embed)
-        
-        # Wait for a response. If we don't hear back in 5 minutes, close the thread.
-        def check(m):
-            if type(m.channel) == discord.Thread:
-                if m.channel.id == thread.id:
-                    return True
-        try: 
-            user_response = await client.wait_for('message', check=check, timeout=300)
-            await user_response.add_reaction("🧠")
-            system_prompt = user_response.content
-        except asyncio.TimeoutError:
-            await thread.send("No response. Closing thread.")
-            await thread.edit(locked=True)
-    
-        # Edit the explaination message to include the system prompt.
-        embed.description = f"System Prompt:"
-        embed.color = 0x00ff00
-        #await explanation_message.edit(embed=embed)
-        
-        # Send another message containing the system prompt.
-        #embed.description = f"```{system_prompt}```"
-        #await thread.send(embed=embed)
+        await thread.send(embed=embed)
 
         # Remove the 👀 reaction.
         await remove_reactions(message, ["👀"])
         return
     
-    # This is a reply to a thread.
-    # Find the system prompt - it is the third message in the thread.
-    # Fetch the thread and grab the third message.
+    # The message is in a thread. Fetch the thread messages.
     replies = await message.channel.history(limit=100).flatten()
 
     # Reverse the replies so the most recent is last.
@@ -136,14 +112,14 @@ async def handle_message_chatgpt(message):
     # If there are only three messages, the third message is the system prompt.
     # We don't need to do anything here.
     if len(replies) == 3:
-        return await replies[2].add_reaction("✅")
+        return await replies[2].add_reaction("🧠")
     
     # If there are more than three messages, the third message is the system prompt and the rest are replies.
     system_prompt = []
-    system_prompt.append("Chat will be in the form: '[username]: [message]'.")
-    system_prompt.append("Do not start the response with the username.")
+    system_prompt.append("Messages will be in the form '[username]: [message]'.")
+    system_prompt.append("Do not start the response with a username.")
     system_prompt.append(replies[2].content.strip())
-    system_prompt = "\n".join(system_prompt)
+    system_prompt = " ".join(system_prompt)
 
     # Remove the first 3 messages.
     replies = replies[3:]
@@ -160,7 +136,7 @@ async def handle_message_chatgpt(message):
         model="gpt-4",
         max_tokens=max_response_length,
         messages=prompt_messages,
-        temperature=0.7,  # lower temp = more consistent responses
+        temperature=0.9,  # lower temp = more consistent responses
     )
     
     # Return the content from the first choice.
@@ -207,7 +183,7 @@ async def handle_message_chatgpt_old(message):
     #system_prompt.append("Only respond to the last question asked.")
     
 
-    system_prompt = '\n'.join(system_prompt)
+    system_prompt = " ".join(system_prompt)
     
     prompt_messages = await messages_to_prompt(messages, system_prompt)
 
